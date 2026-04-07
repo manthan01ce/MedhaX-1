@@ -1,0 +1,23 @@
+# CodeDuel - Git Ignore
+
+# Dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Database
+data/*.db
+backend/data/*.db
+*.db-shm
+*.db-wal
+
+# Environment Variables
+.env
+backend/.env
+
+# Local Development
+.DS_Store
+dist/
+build/
+.history
+.gemini/

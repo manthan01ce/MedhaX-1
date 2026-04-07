@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="CodeDuel - Challenge your friends to a real-time 1v1 coding quiz battle">
+  <title>CodeDuel - Real-Time Coding Quiz Battles</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Code. Challenge.<br><span class="gradient-text">Conquer.</span></h1>
+      <p>Battle your friends in real-time coding quizzes. Answer questions, dig into your opponent's hidden board, and prove you're the ultimate coder.</p>
+      <div class="hero-buttons">
+        <a href="/login.html" class="btn btn-primary btn-lg" id="hero-login">Login</a>
+        <a href="/register.html" class="btn btn-ghost btn-lg" id="hero-register">Create Account</a>
+      </div>
+      <div class="features">
+        <div class="feature-card">
+          <div class="feature-icon">⚔️</div>
+          <h3>1v1 Battles</h3>
+          <p>Challenge any player by username for a real-time coding duel.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🧩</div>
+          <h3>Strategic Boards</h3>
+          <p>Place hidden shapes on your board. Your opponent must find them!</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🏆</div>
+          <h3>Earn & Dig</h3>
+          <p>Correct answers earn points and dig chances on the enemy board.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💻</div>
+          <h3>8+ Topics</h3>
+          <p>Python, Java, C++, JavaScript, DSA, DBMS, OS, OOP and more.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  <script>
+    // If already logged in, redirect to dashboard
+    fetch('/api/auth/me').then(r => { if (r.ok) window.location.href = '/dashboard.html'; });
+  </script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - CodeDuel</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand"><span>&lt;/&gt;</span> CodeDuel</div>
+    <div class="navbar-right">
+      <div class="navbar-user">
+        <div class="avatar" id="user-avatar"></div>
+        <span id="user-display"></span>
+        <span class="online-dot"></span>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="logout-btn">Logout</button>
+    </div>
+  </nav>
+
+  <div class="container dashboard">
+    <div class="dashboard-header">
+      <h1>Welcome, <span id="welcome-name"></span> 👋</h1>
+      <p>Search for an opponent and start a coding duel</p>
+    </div>
+
+    <div class="dashboard-grid">
+      <!-- Search & Challenge -->
+      <div class="card card-glow search-section">
+        <h3>⚔️ Find an Opponent</h3>
+        <div class="search-bar mt-2">
+          <input type="text" class="form-input" id="search-input" placeholder="Search by username...">
+          <button class="btn btn-primary" id="search-btn">Search</button>
+        </div>
+        <div id="search-results" class="search-results"></div>
+        <div id="online-users" class="mt-2"></div>
+      </div>
+
+      <!-- Match History -->
+      <div class="card">
+        <h3>📊 Match History</h3>
+        <div id="match-history" class="match-history-list mt-2">
+          <p class="text-center" style="color:var(--text-muted)">Loading...</p>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="card">
+        <h3>🎯 Quick Stats</h3>
+        <div id="user-stats" class="mt-2">
+          <p style="color:var(--text-muted)">Play matches to see your stats!</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Challenge Config Modal -->
+  <div id="challenge-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h2>⚔️ Send Challenge</h2>
+      <p style="color:var(--text-secondary)">Challenge <strong id="challenge-target"></strong></p>
+      <div class="form-group mt-2">
+        <label class="form-label">Number of Questions</label>
+        <select class="form-select" id="question-count">
+          <option value="10">10 Questions (5×5 Board)</option>
+          <option value="20" selected>20 Questions (7×7 Board)</option>
+          <option value="50">50 Questions (10×10 Board)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category / Topic</label>
+        <select class="form-select" id="category-select">
+          <option value="">Loading categories...</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="send-challenge-btn">Send Challenge</button>
+        <button class="btn btn-ghost" id="cancel-challenge-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Incoming Challenge Notification -->
+  <div id="incoming-challenge" class="challenge-notification hidden">
+    <h3>⚔️ Incoming Challenge!</h3>
+    <p class="details">
+      <strong id="challenger-name"></strong> wants to battle you!<br>
+      <span id="challenge-info"></span>
+    </p>
+    <div class="actions">
+      <button class="btn btn-green btn-sm" id="accept-challenge-btn">Accept</button>
+      <button class="btn btn-red btn-sm" id="reject-challenge-btn">Reject</button>
+    </div>
+  </div>
+
+  <!-- Waiting after challenge sent -->
+  <div id="waiting-overlay" class="modal-overlay hidden">
+    <div class="modal text-center">
+      <h2>Challenge Sent!</h2>
+      <p style="color:var(--text-secondary)" class="mt-1">Waiting for <strong id="waiting-target"></strong> to respond...</p>
+      <div class="spinner"></div>
+      <button class="btn btn-ghost btn-sm mt-2" id="cancel-waiting-btn">Cancel</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

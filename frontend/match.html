@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Match - CodeDuel</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Game Header -->
+  <div class="game-header" id="game-header">
+    <div class="game-scores">
+      <div class="score-card you">
+        <div class="score-label">You</div>
+        <div class="score-value" id="your-score">0</div>
+        <div class="score-label" id="your-name">—</div>
+      </div>
+      <div style="color:var(--text-muted);font-weight:700;font-size:1.2rem">VS</div>
+      <div class="score-card opponent">
+        <div class="score-label">Opponent</div>
+        <div class="score-value" id="opp-score">0</div>
+        <div class="score-label" id="opp-name">—</div>
+      </div>
+    </div>
+    <div>
+      <span class="game-phase-label" id="phase-label">Waiting...</span>
+      <span class="badge badge-blue ml-1" id="question-progress"></span>
+    </div>
+  </div>
+
+  <!-- Game Main Area -->
+  <div class="game-main" id="game-main">
+    <!-- PHASE: Waiting -->
+    <div id="phase-waiting" class="waiting-screen">
+      <h2>Entering Match Room...</h2>
+      <div class="spinner"></div>
+      <p>Preparing the battlefield</p>
+    </div>
+
+    <!-- PHASE: Shape Placement -->
+    <div id="phase-placement" class="hidden">
+      <div class="placement-container">
+        <div class="placement-sidebar">
+          <h3 class="mb-1">🧩 Place Your Shapes</h3>
+          <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem">
+            Select a shape, then click on the grid to place it. All shapes must be placed before starting.
+          </p>
+          <div id="shape-palette" class="shape-palette"></div>
+          <div class="placement-controls">
+            <button class="btn btn-ghost btn-sm" id="rotate-btn">🔄 Rotate</button>
+            <button class="btn btn-ghost btn-sm" id="clear-btn">🗑️ Clear All</button>
+          </div>
+          <div class="mt-2">
+            <button class="btn btn-green w-full" id="confirm-placement-btn" disabled>✅ Confirm Placement</button>
+          </div>
+          <div id="placement-status" class="mt-1" style="font-size:0.85rem;color:var(--text-muted)"></div>
+          <div id="opponent-placement-status" class="mt-1" style="font-size:0.85rem"></div>
+        </div>
+        <div class="board-container">
+          <div class="board-title">Your Board</div>
+          <div id="placement-board" class="grid-board"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PHASE: Quiz -->
+    <div id="phase-quiz" class="hidden">
+      <div class="quiz-container">
+        <div class="quiz-panel">
+          <div class="question-card" id="question-card">
+            <div class="question-header">
+              <span class="question-number" id="q-number">Q1</span>
+              <span class="question-timer" id="q-timer">30</span>
+            </div>
+            <div class="question-text" id="q-text">Loading question...</div>
+            <div class="options-grid" id="q-options"></div>
+          </div>
+          <!-- Dig prompt after correct answer -->
+          <div id="dig-prompt" class="dig-prompt hidden">
+            <h3>🎯 Dig Phase!</h3>
+            <p>You answered correctly! Click a cell on the opponent's board to dig.</p>
+            <button class="btn btn-ghost btn-sm mt-1" id="skip-dig-btn">Skip Dig</button>
+          </div>
+          <!-- Question result feedback -->
+          <div id="question-feedback" class="hidden mt-2" style="text-align:center"></div>
+        </div>
+        <div class="quiz-board-panel">
+          <div class="board-container">
+            <div class="board-title">Opponent's Board — Click to Dig</div>
+            <div id="opponent-board" class="grid-board"></div>
+          </div>
+          <div class="board-container mt-2">
+            <div class="board-title">Your Board</div>
+            <div id="your-board" class="grid-board"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PHASE: Results -->
+    <div id="phase-results" class="hidden">
+      <div class="results-container">
+        <div class="results-header">
+          <h1 id="result-title">Match Over!</h1>
+          <p id="result-subtitle" style="font-size:1.1rem"></p>
+        </div>
+        <div class="results-scores" id="results-scores"></div>
+        <div class="mt-3">
+          <button id="leave-match-btn" class="btn btn-primary btn-lg">Back to Dashboard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/match.js"></script>
+</body>
+</html>
