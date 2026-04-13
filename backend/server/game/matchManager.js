@@ -529,10 +529,15 @@ function cleanupMatch(matchId) {
   }
 }
 
+function removePlayerFromMatchMapping(userId) {
+  userMatchMap.delete(userId);
+}
+
 module.exports = {
   createChallenge, getChallenge, removeChallenge,
   isUserInMatch, createMatch, loadQuestionsForMatch, getMatch, getMatchByUser, getOpponentId,
   submitPlacement, startNextQuestion, submitAnswer, evaluateQuestion, evaluateSingleAnswer,
   submitDig, skipDig, checkAllDigsDone, finishMatch, forfeitMatch, cleanupMatch,
+  removePlayerFromMatchMapping,
   activeMatches, pendingChallenges,
 };

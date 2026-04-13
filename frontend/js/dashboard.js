@@ -77,21 +77,18 @@
   }
   loadHistory();
 
-  // Request online users on load
+  // Request online users
   socket.emit('users:online');
+  setInterval(() => socket.emit('users:online'), 10000);
 
   socket.on('users:online_list', ({ users, count }) => {
     const el = document.getElementById('online-users');
-    // Case-insensitive filtering of ourselves
-    const otherUsers = users.filter(u => u.toLowerCase() !== currentUser.username.toLowerCase());
-    
-    if (!otherUsers.length) {
+    if (!users.length) {
       el.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem">No other users online. Open another browser window and log in as a different user to test!</p>';
       return;
     }
-
-    el.innerHTML = `<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.5rem">Online users (${users.length}):</p>` +
-      otherUsers.map(u => `<div class="user-item"><span><span class="online-dot"></span> <span class="username">${u}</span></span><button class="btn btn-primary btn-sm challenge-user-btn" data-username="${u}">Challenge</button></div>`).join('');
+    el.innerHTML = `<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.5rem">Online users (${count}):</p>` +
+      users.map(u => `<div class="user-item"><span><span class="online-dot"></span> <span class="username">${u}</span></span><button class="btn btn-primary btn-sm challenge-user-btn" data-username="${u}">Challenge</button></div>`).join('');
 
     el.querySelectorAll('.challenge-user-btn').forEach(btn => {
       btn.addEventListener('click', () => openChallengeModal(btn.dataset.username));

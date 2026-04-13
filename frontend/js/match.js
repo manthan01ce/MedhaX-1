@@ -1,9 +1,5 @@
 // Match page controller - handles all game phases
-(async /**
- * Match Controller
- * Updated with Premium Anti-Cheat and Zero-Wait Leave logic
- */
-function() {
+(async function() {
   // Auth check
   let currentUser = null;
   try {
@@ -24,7 +20,6 @@ function() {
   let opponentUsername = matchData.opponentUsername || 'Opponent';
 
   // State
-  let currentPhase = 'waiting';
   let selectedShapeIndex = -1;
   let currentRotation = 0;
   let placedShapes = {}; // shapeId -> { cells, rotationIndex }
@@ -35,7 +30,6 @@ function() {
   let currentQuestionIndex = -1;
   let answered = false;
   let lockedOut = false;
-  let matchFinished = false;
 
   // Init boards
   function initBoard(size) {
@@ -50,26 +44,15 @@ function() {
 
   // === PHASE TRANSITIONS ===
   function showPhase(phase) {
-    currentPhase = phase;
     ['phase-waiting', 'phase-placement', 'phase-quiz', 'phase-results'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) {
-        if (id === `phase-${phase}`) {
-          el.classList.remove('hidden');
-        } else {
-          el.classList.add('hidden');
-        }
-      }
+      document.getElementById(id).classList.add('hidden');
     });
-    
-    const labelEl = document.getElementById('phase-label');
-    if (labelEl) {
-      labelEl.textContent =
-        phase === 'waiting' ? 'Waiting...' :
-        phase === 'placement' ? 'Place Your Shapes' :
-        phase === 'quiz' ? 'Quiz Active' :
-        'Match Over';
-    }
+    document.getElementById(`phase-${phase}`).classList.remove('hidden');
+    document.getElementById('phase-label').textContent =
+      phase === 'waiting' ? 'Waiting...' :
+      phase === 'placement' ? 'Place Your Shapes' :
+      phase === 'quiz' ? 'Quiz Active' :
+      'Match Over';
   }
 
   // Start in placement phase
@@ -79,11 +62,6 @@ function() {
     renderOpponentBoard();
     renderMyBoardSmall();
     renderShapePalette();
-  } else {
-    // Fresh match or placing phase reconnect
-    showPhase('placement');
-    renderShapePalette();
-    renderPlacementBoard();
   }
 
   socket.on('challenge:error', (data) => {
@@ -583,7 +561,6 @@ function() {
 
   // === RESULTS ===
   socket.on('match:finished', (data) => {
-    matchFinished = true;
     showPhase('results');
 
     const titleEl = document.getElementById('result-title');
@@ -660,20 +637,10 @@ function() {
     `;
   });
 
-  // ====== LEAVE MATCH ======
+  // ====== LEAVE MATCH (Immediate) ======
   document.getElementById('leave-match-btn').addEventListener('click', () => {
-    document.getElementById('leave-match-btn').disabled = true;
-    document.getElementById('leave-match-btn').textContent = 'Waiting for opponent...';
     socket.emit('match:leave', { matchId });
-  });
-
-  socket.on('match:waiting_for_opponent', () => {
-    document.getElementById('leave-match-btn').textContent = 'Waiting for opponent to leave...';
-  });
-
-  socket.on('match:opponent_wants_leave', () => {
-    const subEl = document.getElementById('result-subtitle');
-    subEl.innerHTML += `<br><span style="color:var(--accent-amber)">Opponent is waiting to leave...</span>`;
+    window.location.href = '/dashboard.html';
   });
 
   socket.on('match:go_dashboard', () => {
@@ -681,26 +648,18 @@ function() {
   });
 
   // ====== ANTI-CHEAT ======
-  let antiCheatCooldown = false;
-
   function triggerCheatWarning() {
     // Only warn if match is active and not finished
     const phaseLabel = document.getElementById('phase-label').textContent;
-    if (phaseLabel === 'Match Over' || phaseLabel === 'Waiting...' || antiCheatCooldown) return;
+    if (phaseLabel === 'Match Over' || phaseLabel === 'Waiting...') return;
     
-    // Set a short cooldown to prevent double warnings from blur + visibilitychange
-    antiCheatCooldown = true;
-    setTimeout(() => { antiCheatCooldown = false; }, 2000);
-
     socket.emit('match:cheat_warning', { matchId });
   }
 
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') triggerCheatWarning();
-  });
-
-  window.addEventListener('blur', () => {
-    triggerCheatWarning();
+    if (document.visibilityState === 'hidden') {
+      triggerCheatWarning();
+    }
   });
 
   document.addEventListener('copy', (e) => {
@@ -717,9 +676,9 @@ function() {
     if (data.warningCount >= 3) {
       document.getElementById('cheat-warning-title').textContent = "MATCH FORFEITED";
       document.getElementById('cheat-warning-msg').textContent = "You have been disqualified for repeated anti-cheat violations.";
-      document.getElementById('close-cheat-overlay').textContent = "Return Home";
+      document.getElementById('close-cheat-overlay').textContent = "Match Results";
       document.getElementById('close-cheat-overlay').onclick = () => {
-        handleMatchLeave(true); // Force leave
+        overlay.classList.add('hidden');
       };
     }
   });
@@ -728,11 +687,10 @@ function() {
     document.getElementById('cheat-warning-overlay').classList.add('hidden');
   });
 
-  // ====== MATCH LEAVE LOGIC ======
-  function handleMatchLeave(isForfeit = false) {
-    // If we're just waiting or already finished, just leave.
-    if (currentPhase === 'waiting' || currentPhase === 'results' || isForfeit || matchFinished) {
-      socket.emit('match:leave', { matchId });
+  // ====== HEADER ACTIONS ======
+  document.getElementById('header-leave-btn').addEventListener('click', () => {
+    const phaseLabel = document.getElementById('phase-label').textContent;
+    if (phaseLabel === 'Match Over') {
       window.location.href = '/dashboard.html';
       return;
     }
@@ -741,20 +699,7 @@ function() {
       socket.emit('match:forfeit', { matchId });
       window.location.href = '/dashboard.html';
     }
-  }
-
-  document.getElementById('header-leave-btn').addEventListener('click', () => handleMatchLeave());
-  
-  const sideLeaveBtn = document.getElementById('side-leave-btn');
-  if (sideLeaveBtn) {
-    sideLeaveBtn.addEventListener('click', () => handleMatchLeave());
-  }
-
-  // Dashboard button on results page
-  const mainLeaveBtn = document.getElementById('leave-match-btn');
-  if (mainLeaveBtn) {
-    mainLeaveBtn.addEventListener('click', () => handleMatchLeave());
-  }
+  });
 
   // Handle reconnect data
   if (matchData.reconnect) {

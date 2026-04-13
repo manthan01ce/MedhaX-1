@@ -2,11 +2,6 @@
  * Socket.IO Event Router for CodeDuel
  */
 
-/**
- * Socket.io Event Handlers
- * Updated with Anti-Cheat and Leave Match logic
- */
-
 const { socketAuth } = require('../middleware/auth');
 const matchManager = require('../game/matchManager');
 
@@ -14,14 +9,6 @@ const matchManager = require('../game/matchManager');
 const onlineUsers = new Map();
 // Track socketId -> userId
 const socketUserMap = new Map();
-
-function broadcastOnlineUsers(io) {
-  console.log(`[Socket] Broadcasting online users: ${onlineUsers.size} users online`);
-  io.emit('users:online_list', {
-    users: [...onlineUsers.values()].map(u => u.username),
-    count: onlineUsers.size,
-  });
-}
 
 function setupSocket(io) {
   io.use(socketAuth);
@@ -33,9 +20,6 @@ function setupSocket(io) {
     // Register online
     onlineUsers.set(user.id, { socketId: socket.id, username: user.username });
     socketUserMap.set(socket.id, user.id);
-
-    // Broadcast update to everyone
-    broadcastOnlineUsers(io);
 
     // Rejoin match if reconnecting
     const existingMatch = matchManager.getMatchByUser(user.id);
@@ -68,14 +52,12 @@ function setupSocket(io) {
         return socket.emit('challenge:error', { error: 'You are already in a match' });
       }
 
-      const targetUserLower = targetUsername.toLowerCase();
-      const targetOnline = [...onlineUsers.values()].find(u => u.username.toLowerCase() === targetUserLower);
-      
+      const targetOnline = [...onlineUsers.values()].find(u => u.username === targetUsername.toLowerCase());
       if (!targetOnline) {
         return socket.emit('challenge:error', { error: 'User is not online' });
       }
 
-      const targetUserId = [...onlineUsers.entries()].find(([, u]) => u.username.toLowerCase() === targetUserLower)?.[0];
+      const targetUserId = [...onlineUsers.entries()].find(([, u]) => u.username === targetUsername.toLowerCase())?.[0];
       if (!targetUserId) {
         return socket.emit('challenge:error', { error: 'User not found' });
       }
@@ -144,13 +126,11 @@ function setupSocket(io) {
         io.to(fromOnline.socketId).emit('match:created', {
           ...matchData,
           opponentUsername: user.username,
-          phase: match.phase,
         });
       }
       socket.emit('match:created', {
         ...matchData,
         opponentUsername: challenge.from.username,
-        phase: match.phase,
       });
 
       // Fire question loading in the background while players place shapes
@@ -221,14 +201,8 @@ function setupSocket(io) {
           console.log(`[Socket] Starting quiz for match ${matchId} with ${match.questions.length} questions.`);
           const questionData = matchManager.startNextQuestion(matchId);
           if (questionData && questionData.type === 'question') {
-            /**
-             * Match Controller
-             * Updated with Premium Anti-Cheat and Zero-Wait Leave logic
-             */
-            (function() {
-              io.to(`match:${matchId}`).emit('quiz:question', questionData);
-              startQuestionTimer(io, matchId);
-            })();
+            io.to(`match:${matchId}`).emit('quiz:question', questionData);
+            startQuestionTimer(io, matchId);
           } else {
             console.error(`[Socket] startNextQuestion returned invalid data for match ${matchId}`);
           }
@@ -450,30 +424,31 @@ function setupSocket(io) {
     socket.on('match:leave', ({ matchId }) => {
       const match = matchManager.getMatch(matchId);
       
-      // Send the requesting player home immediately
-      socket.emit('match:go_dashboard');
+      // Remove this user from the mapping immediately regardless of match state
+      matchManager.removePlayerFromMatchMapping(user.id);
 
-      if (!match) return;
-
-      // If they leave MID-MATCH, it's a forfeit
-      if (match.phase !== 'results') {
-        handleForfeit(io, matchId, user.id, 'manual');
+      if (!match) {
+        socket.emit('match:go_dashboard');
         return;
       }
 
-      // If they leave POST-MATCH, just track it for cleanup
       match.playersLeaving.add(user.id);
       const allLeaving = Object.keys(match.players).every(id => match.playersLeaving.has(parseInt(id)));
-      if (allLeaving) {
-        matchManager.cleanupMatch(matchId);
-      } else {
-        // Notify opponent
+
+      if (allLeaving || match.phase === 'results') {
+        // If it's the results phase, we can cleanup or at least notify opponent
         const opponentId = matchManager.getOpponentId(match, user.id);
         const opponent = match.players[opponentId];
         if (opponent?.socketId) {
           io.to(opponent.socketId).emit('match:opponent_wants_leave');
         }
+
+        if (allLeaving) {
+          matchManager.cleanupMatch(matchId);
+        }
       }
+      
+      socket.emit('match:go_dashboard');
     });
 
     socket.on('match:cheat_warning', ({ matchId }) => {
@@ -483,19 +458,45 @@ function setupSocket(io) {
       const player = match.players[user.id];
       if (!player) return;
       
-      player.warningCount = (player.warningCount || 0) + 1;
+      player.warningCount++;
       console.log(`[Socket] ${user.username} received warning ${player.warningCount}/3 in match ${matchId}`);
       
-      // Notify the player of their current strike count
-      socket.emit('match:cheat_warning', { warningCount: player.warningCount });
-
       if (player.warningCount >= 3) {
-        handleForfeit(io, matchId, user.id, 'cheat');
+        const forfeitResult = matchManager.forfeitMatch(matchId, user.id, 'cheat');
+        if (forfeitResult) {
+          const finalResults = matchManager.finishMatch(matchId, 'forfeit');
+          finalResults.forfeited = true;
+          finalResults.forfeitedBy = user.id;
+          finalResults.reason = 'cheat';
+          
+          io.to(`match:${matchId}`).emit('match:finished', finalResults);
+          // Wait a bit before cleanup so clients get the result
+          setTimeout(() => matchManager.cleanupMatch(matchId), 5000);
+        }
       }
     });
 
     socket.on('match:forfeit', ({ matchId }) => {
-      handleForfeit(io, matchId, user.id, 'manual');
+      const match = matchManager.getMatch(matchId);
+      if (!match || match.phase === 'results') return;
+      
+      const forfeitResult = matchManager.forfeitMatch(matchId, user.id, 'manual');
+      if (forfeitResult) {
+        // Remove forfeiting player from mapping immediately
+        matchManager.removePlayerFromMatchMapping(user.id);
+
+        const finalResults = matchManager.finishMatch(matchId, 'forfeit');
+        finalResults.forfeited = true;
+        finalResults.forfeitedBy = user.id;
+        finalResults.reason = 'manual';
+        
+        io.to(`match:${matchId}`).emit('match:finished', finalResults);
+        // Redirect the forfeiter
+        socket.emit('match:go_dashboard');
+        
+        // Wait a bit before cleanup so opponent gets the result
+        setTimeout(() => matchManager.cleanupMatch(matchId), 5000);
+      }
     });
 
     // ====== DISCONNECT ======
@@ -511,9 +512,6 @@ function setupSocket(io) {
         onlineUsers.delete(user.id);
       }
       socketUserMap.delete(socket.id);
-      
-      // Broadcast update to everyone
-      broadcastOnlineUsers(io);
 
       // Handle match disconnect
       const match = matchManager.getMatchByUser(user.id);
@@ -565,7 +563,7 @@ function setupSocket(io) {
     // Emit online users count
     socket.on('users:online', () => {
       socket.emit('users:online_list', {
-        users: [...onlineUsers.values()].map(u => u.username), // Send full list, client filters as needed
+        users: [...onlineUsers.values()].map(u => u.username).filter(u => u !== user.username),
         count: onlineUsers.size,
       });
     });
@@ -726,24 +724,6 @@ function advanceToNextQuestion(io, matchId) {
       startQuestionTimer(io, matchId);
     }
   }, 1500);
-}
-
-function handleForfeit(io, matchId, userId, reason) {
-  const finalResults = matchManager.forfeitMatch(matchId, userId, reason);
-  if (!finalResults) return;
-
-  const match = matchManager.getMatch(matchId);
-  if (!match) return;
-
-  // Notify all players of the forfeit
-  Object.values(match.players).forEach(player => {
-    if (player.socketId) {
-      io.to(player.socketId).emit('match:finished', finalResults);
-    }
-  });
-
-  // Small delay before cleanup to allow logic to settle
-  setTimeout(() => matchManager.cleanupMatch(matchId), 60000);
 }
 
 module.exports = { setupSocket, onlineUsers };
