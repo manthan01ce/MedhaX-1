@@ -9,11 +9,14 @@ COPY package*.json ./
 # Copy backend package files
 COPY backend/package*.json ./backend/
 
-# Install dependencies for backend (npm install is more resilient for native builds)
-RUN cd backend && npm install --omit=dev
+# Install dependencies for backend (ignore scripts to prevent early seed execution)
+RUN cd backend && npm install --omit=dev --ignore-scripts
 
-# Copy all application code (preserves backend/ and frontend/ structure)
+# Copy all application code
 COPY . .
+
+# Run the seeding script manually after files are copied
+RUN cd backend && node server/seed.js
 
 # Create data directory for SQLite
 RUN mkdir -p backend/data
