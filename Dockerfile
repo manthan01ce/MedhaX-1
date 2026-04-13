@@ -9,11 +9,14 @@ COPY package*.json ./
 # Copy backend package files
 COPY backend/package*.json ./backend/
 
-# Install dependencies for backend (ignore scripts to prevent early seed execution)
-RUN cd backend && npm install --omit=dev --ignore-scripts
+# Install dependencies for backend (RE-ENABLED scripts for native module compilation)
+RUN cd backend && npm install --omit=dev
 
 # Copy all application code
 COPY . .
+
+# Explicitly rebuild better-sqlite3 to ensure binaries match the environment
+RUN cd backend && npm rebuild better-sqlite3
 
 # Run the seeding script manually after files are copied
 RUN cd backend && node server/seed.js
